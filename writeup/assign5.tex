@@ -1,0 +1,196 @@
+\documentclass[11pt]{article}
+
+\usepackage{tikz}
+\usepackage{url}
+\usepackage{fullpage}
+\usepackage{graphicx}
+
+\title{CS158 - Assignment 5\\Multiclass Standoff: AVA vs. OVA\\\small{Due: Sunday, October 2 by 11:59pm}}
+\author{Maria Martinez \& Sebastian Cevallos}
+\date{\ }
+
+\parindent=0in
+
+\parskip 7.2pt 
+
+\begin{document}
+\maketitle
+
+\vspace{-0.8in}
+
+
+\section{A Blast From the Past}
+
+To get you warmed up and comfortable with the new data set the first things we'll do is run a quick experiment with the decision tree classifier on our new wine data set.  On this data set, each internal decision tree node amounts to asking whether or not a particular word occurred on the data.
+
+Include answers to the following three questions in your assignment writeup.
+
+\begin{enumerate}
+
+\item Train a decision tree classifier on ALL of the data and set the depth limit at 5. Use the \texttt{toString} method to print out the learned tree.  Look at the words.  Do they make sense?  Do any of them stand out?  \emph{Include the tree along with 2-3 sentences describing what you see.}
+
+\item If you just predicted the majority class, what would the accuracy be?  This is often a reasonable baseline to measure against (hopefully we can beat this!).
+
+\item On a random 80/20 split of the data, train the decision tree classifier and evaluate both the training and testing accuracy for depth limits ranging from 0 to 50 (for consistency, all tests should be run on exactly the \textbf{SAME} split).  Include the output of your results.  What is the best depth to use?  Do you see evidence of overfitting?
+
+\end{enumerate}
+
+\section{One versus all}
+
+Implement a one versus all classifier called \texttt{OVAClassifier} that implements the \texttt{Classifier} interface.
+
+\begin{itemize}
+
+\item The constructor should take a single parameter of type \texttt{ClassifierFactory}.  For example, to train an \texttt{OVAClassifier} using depth 2 decision trees, we would do the following:
+
+\begin{verbatim}
+ClassifierFactory factory = new ClassifierFactory(ClassifierFactory.DECISION_TREE, 2);
+OVAClassifier classifier = new OVAClassifier(factory);
+classifier.train(trainDataSet);
+\end{verbatim}
+
+Notice again the power of the factory.  If we wanted to try our approach out with perceptrons, we could simply change the factory line to:
+
+\begin{verbatim}
+ClassifierFactory factory = new ClassifierFactory(ClassifierFactory.PERCEPTRON);
+\end{verbatim}
+
+\item For now, you can just leave the confidence prediction as returning 0.
+
+\item To classify an example, this classifier should pick the label of the most confident one-vs-all classifier that predicts positive.  If none predict positive, it should return the label of the least confident one-vs-all classifier.
+
+\end{itemize}
+
+\section{All versus all}
+
+Implement an all versus all classifier called \texttt{AVAClassifier} that implements the \texttt{Classifier} interface.
+
+\begin{itemize}
+
+\item The constructor should take a single parameter of type \texttt{ClassifierFactory}.
+
+\item For now, you can just leave the confidence prediction as returning 0.
+
+\item To classify an example, we will use the weighted vote based on the confidence of the classifiers.  You will need to calculate a running total for all of the labels.  For each of your paired classifiers you'll update the total for \emph{two} labels, increasing one and decreasing the other.
+
+\end{itemize}
+
+\begin{center}
+\includegraphics[scale=0.6]{figures/null_hypothesis.png}
+
+{\footnotesize http://xkcd.com/892/}
+\end{center}
+
+\section{Experiments}
+\label{evaluation}
+
+
+Answer the following questions (in addition to the three above) and put them in a file called \texttt{experiments} (pick some reasonable file type).  Explicitly label each answer with the question number.
+
+\begin{enumerate}
+
+\setcounter{enumi}{3}
+
+\item On a 10-fold cross validation of the wine data set (use the \emph{same} 10-fold split for all three), calculate accuracies for the following:
+
+\begin{itemize}
+
+\item OVA with decision trees sized 1, 2 and 3.
+
+\item AVA with decision trees sized 1, 2 and 3.
+
+\item Multiclass decision tree (i.e. just by itself) with your best limit found above.
+
+\end{itemize}
+
+Put these all in a spreadsheet or other format (you'll have 70 numbers, 10 for each experiment).
+
+Run a $t$-test to validate which approach is best.  What is the best approach?  Is this surprising?  Include your table of results and a short write-up describing your results.
+
+\item Time both OVA and AVA on some reasonable test of the wine data set and measure both training time and testing time (separately).  You can use the \texttt{ClassifierTimer} class if you'd like or just do it yourself.  Do the timings make sense?  Include your results and 2-3 sentences describing how you generated the timings and explaining the results. 
+
+\item On this data set, what would you say is the best approach to use?  Briefly justify your answer.
+
+\item Train the OVA classifier with decision trees sized 3 on all of the data.  What is the tree for the \texttt{zinfandel} classifier (again, use the \texttt{toString} method to print it out)?  Does this make sense?  What words are indicative of the class? What words not indicative of the class?  Include a short summary describing your analysis of the tree.
+
+\end{enumerate}
+
+\section{Hints/Advice}
+
+\begin{itemize}
+
+\item Neither the OVA or the AVA class should require tons of code or complicated procedures (my implementations are each a little over a hundred lines of code).
+
+\item Make sure you understand how each approach works.  If you're fuzzy, come talk to me.
+
+\item Both the AVA and OVA approach will involve training a number of classifiers, so you should expect it to take some time to train on this data set.  On my laptop, my implementations took on the order of a minute to train on a single split of the wine data.
+
+\item For the OVA classifier, you'll need to store one classifier for each label in the data. I recommend doing it using some sort of \texttt{Map} (e.g. \texttt{HashMap}), but use whatever makes sense to you.
+
+\item For the AVA classifier, you'll need to store classifiers that distinguish between a pair of classes.  When storing these classifiers, you'll need to store both the the classifier itself, as well as which label the classifier predicts between.  There are a number of ways you can do this:
+
+\begin{itemize}
+
+\item If you traverse the pairs of labels in exactly the same order during both training (when you create them) and classifying (when you apply them) you only need to store the classifiers themselves (and not a mapping).  However, do NOT rely on a non-sequential ordering of the labels (like a \texttt{Set}).  Instead, make your own copy of the labels in some sort of sequential structure (like a \texttt{List}).
+
+\item Create a unique \texttt{String} that stores the information (i.e. which two classes).  You can then associate the classifier with this string.  You should be able to deconstruct this string during classify time to be able to tell which two classes it represents.
+
+\end{itemize}
+
+\item You will need to create new \texttt{DataSet}s during training for both the OVA and AVA classifiers.  To do this, 
+
+\begin{enumerate}
+
+\item Create a new \texttt{DataSet} using the feature map from the original data set
+
+\item Create \emph{new} examples that are copies of the examples in the original data set.  There is a copy constructor in the \texttt{Example} class that makes this easy.
+
+\item Set the label of these new examples to be either positive or negative.  If you do not create new copies of the examples, when you set the label you're going to lose the original label (that's a bad thing).
+
+\item Finally, add each new example to the new data set using the \texttt{addData} method.
+
+\end{enumerate}
+
+Notice that for each binary classifier you're learning you're creating a new data set that is a \emph{copy} of the original data set, but with the labels changed (for the OVA, a copy of the whole thing, for the AVA, a copy of two labels).
+
+\item These types of meta classifiers can be particularly hard to debug since there is a lot going on.   I \emph{strongly} suggest coming up with a very simple data set on your own (say with just a few features and three classes).  When training:
+
+\begin{itemize}
+\item Print out each of the trees learned and make sure they make sense.
+
+\item When classifying the examples, print out each of the results from the individual classifiers and check that they are doing the right thing.  Then, you can check that your aggregation/voting method is doing the correct thing.
+\end{itemize}
+
+\end{itemize}
+
+\section{When You're Done}
+
+Make sure that your code compiles, that your files are named as specified and that you have followed the specifications exactly (i.e. method names, number of parameters, etc.).
+
+Create a directory with your last name, followed by the assignment number, for example, for this assignment mine would be \texttt{kauchak5}.  If you worked with a partner, put both last names.
+
+Inside this directory, create a \texttt{code} directory and copy all of your code into this directory, maintaining the package structure.
+
+Finally, also include your \texttt{experiments} file with the answers from Section \ref{evaluation}.
+
+\texttt{tar} then \texttt{gzip} this folder and submit that file on the submission page on the course web page.
+
+\subsection*{Commenting and code style}
+
+Your code should be commented appropriately (though you don't need to go overboard).    The most important things:
+
+\begin{itemize}
+\item Your name (or names) and the assignment number should be at the top of each file
+\item Each class and method should have an appropriate JavaDoc
+\item If anything is complicated, it should include some comments.
+\end{itemize}
+
+There are many possible ways to approach this problem, which makes code style and comments very important here so that I can understand what you did.  For this reason, you will lose points for poorly commented or poorly organized code.
+
+\begin{center}
+\includegraphics[scale=7.0]{figures/engineering_hubris.png}
+
+{\footnotesize http://xkcd.com/319/}
+\end{center}
+
+\end{document}
